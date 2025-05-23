@@ -69,3 +69,10 @@ model Verification {
 
   @@map("verification")
 }
+
+model Workspace {
+  id String @id @default(uuid())
+  name String
+  userId String
+  imageUrl String? @db.Text
+}

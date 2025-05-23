@@ -1,14 +1,21 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { logger } from "hono/logger";
 
-import { auth } from "./lib/auth.js";
 import { config } from "dotenv";
+import { auth } from "~lib/auth.js";
+import { requireAuthMiddleware, setAuthMiddleware } from "./middlewares.js";
+import type { AuthContext } from "./types.js";
+import workspaceRoutes from "./routes/workspace.js";
 
 config({ debug: process.env.NODE_ENV !== "production" });
-const app = new Hono();
+
+const app = new Hono<AuthContext>().basePath("/api");
+// app.use("*", cors({ origin: "http://localhost:3001" }));
+app.use(logger());
 app.use(
-  "/api/auth/*", // or replace with "*" to enable cors for all routes
+  "*", // or replace with "*" to enable cors for all routes
   cors({
     origin: "http://localhost:3001", // replace with your origin
     allowHeaders: ["Content-Type", "Authorization"],
@@ -18,10 +25,14 @@ app.use(
     credentials: true,
   })
 );
-app.on(["POST", "GET"], "/api/auth/**", (c) => auth.handler(c.req.raw));
-app.get("/", (c) => {
+
+app.use("*", setAuthMiddleware);
+
+app.on(["POST", "GET"], "/auth/**", (c) => auth.handler(c.req.raw));
+app.get("/", requireAuthMiddleware, (c) => {
   return c.text("Hello Hono!");
 });
+app.route("/workspace", workspaceRoutes);
 
 serve(
   {

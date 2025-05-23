@@ -5,12 +5,16 @@
     "strict": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["./src/*"],
+      "~lib/*": ["./src/lib/*"],
+      "~routes/*": ["./src/routes/*"]
+    }
   },
   "exclude": ["node_modules"]
 }
