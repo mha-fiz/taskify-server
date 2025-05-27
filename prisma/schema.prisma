@@ -75,4 +75,17 @@ model Workspace {
   name String
   userId String
   imageUrl String? @db.Text
+  imageId String
+  inviteCode String
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+model Members {
+  id String @id @default(uuid())
+  userId String
+  workspaceId String
+  role Role @default(USER)
 }
