@@ -119,8 +119,9 @@ workspaceRoutes.post(
 
       return c.json({
         success: true,
-        workspace,
-        uploadedData,
+        data: {
+          workspace,
+        },
       });
     } catch (error) {
       console.error(error);
