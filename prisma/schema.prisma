@@ -75,8 +75,9 @@ model Workspace {
   name String
   userId String
   imageUrl String? @db.Text
-  imageId String
+  imageId String?
   inviteCode String
+  member Members[]
 }
 
 enum Role {
@@ -88,4 +89,6 @@ model Members {
   userId String
   workspaceId String
   role Role @default(USER)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }

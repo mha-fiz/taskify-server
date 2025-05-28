@@ -7,10 +7,14 @@ import prisma from "~lib/db.js";
 import type { RequiredAuthContext } from "~/types.js";
 import { uploadToImagekit } from "~/lib/imagekit.js";
 import { generateInviteCode } from "~/lib/utils.js";
+import {
+  createWorkspaceSchema,
+  updateWorkspaceSchema,
+} from "~/schemas/workspace.js";
 
-const workspaceRoutes = new Hono<RequiredAuthContext>();
+const app = new Hono<RequiredAuthContext>();
 
-workspaceRoutes.get("/", requireAuthMiddleware, async (c) => {
+app.get("/", requireAuthMiddleware, async (c) => {
   const user = c.get("user");
   try {
     const membersOf = await prisma.members.findMany({
@@ -48,26 +52,39 @@ workspaceRoutes.get("/", requireAuthMiddleware, async (c) => {
     return c.json({
       success: false,
       error: {
-        code: error instanceof Error ? 400 : 500,
-        message:
-          error instanceof Error ? error.message : "Something went wrong",
+        status: 500,
+        message: JSON.stringify(error) || "Internal server error",
       },
     });
   }
 });
 
-const createWorkspaceSchema = z.object({
-  name: z.string().min(3, "Name too short").max(32, "Name too long"),
-  image: z.union([
-    z.instanceof(File),
-    z
-      .string()
-      .transform((value) => (value === "" ? undefined : value))
-      .optional(),
-  ]),
+app.get("/:workspaceId", requireAuthMiddleware, async (c) => {
+  const { workspaceId } = c.req.param();
+  try {
+    const workspace = await prisma.workspace.findFirst({
+      where: {
+        id: workspaceId,
+      },
+    });
+
+    return c.json({
+      success: true,
+      data: { workspace },
+    });
+  } catch (error) {
+    console.error(error);
+    return c.json({
+      success: false,
+      error: {
+        status: 500,
+        message: JSON.stringify(error) || "Internal server error",
+      },
+    });
+  }
 });
 
-workspaceRoutes.post(
+app.post(
   "/",
   zValidator("form", createWorkspaceSchema),
   requireAuthMiddleware,
@@ -82,22 +99,11 @@ workspaceRoutes.post(
 
     try {
       if (image instanceof File) {
-        const uploaded = await uploadToImagekit(image, "test-file");
+        const uploaded = await uploadToImagekit(image, name);
         uploadedData = uploaded;
         imageUrl = uploaded.thumbnailUrl;
         imageId = uploaded.fileId;
       }
-
-      const data = {
-        uploadedData,
-        userId: session.userId,
-        inviteCode: generateInviteCode(15),
-        name,
-        imageUrl,
-        imageId,
-      };
-
-      console.log("data to create: ", data);
 
       const workspace = await prisma.workspace.create({
         data: {
@@ -106,14 +112,12 @@ workspaceRoutes.post(
           name,
           imageUrl,
           imageId,
-        },
-      });
-
-      await prisma.members.create({
-        data: {
-          workspaceId: workspace.id,
-          userId: session.userId,
-          role: "ADMIN",
+          member: {
+            create: {
+              userId: session.userId,
+              role: "ADMIN",
+            },
+          },
         },
       });
 
@@ -127,10 +131,91 @@ workspaceRoutes.post(
       console.error(error);
       return c.json({
         success: false,
-        message: JSON.stringify(error),
+        error: {
+          status: 500,
+          message: JSON.stringify(error) || "Internal server error",
+        },
       });
     }
   }
 );
 
-export default workspaceRoutes;
+app.patch(
+  "/:workspaceId",
+  zValidator("form", updateWorkspaceSchema),
+  requireAuthMiddleware,
+  async (c) => {
+    const { name, image } = c.req.valid("form");
+    const { workspaceId } = c.req.param();
+    const user = c.get("user");
+
+    const isAuthorized = await prisma.members.findFirst({
+      where: {
+        workspaceId,
+        userId: user.id,
+        role: "ADMIN",
+      },
+    });
+
+    if (!isAuthorized) {
+      return c.json({
+        success: false,
+        error: {
+          status: 401,
+          message: "Unauthorized",
+        },
+      });
+    }
+
+    let imageUrl = "";
+    let imageId = "";
+    let uploadedData: any;
+
+    try {
+      if (image instanceof File) {
+        const uploaded = await uploadToImagekit(image, name ?? "update-icon");
+        uploadedData = uploaded;
+        imageUrl = uploaded.thumbnailUrl;
+        imageId = uploaded.fileId;
+      }
+
+      const updateData: {
+        name?: string;
+        imageUrl?: string | null;
+        imageId?: string | null;
+      } = {};
+
+      if (name) {
+        updateData.name = name;
+      }
+
+      if (uploadedData) {
+        updateData.imageUrl = imageUrl;
+        updateData.imageId = imageId;
+      }
+
+      const workspace = await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: updateData,
+      });
+
+      return c.json({
+        success: true,
+        data: {
+          workspace,
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      return c.json({
+        success: false,
+        error: {
+          status: 500,
+          message: JSON.stringify(error) || "Internal server error",
+        },
+      });
+    }
+  }
+);
+
+export default app;
