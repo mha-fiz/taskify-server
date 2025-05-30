@@ -52,7 +52,7 @@ app.get("/", requireAuthMiddleware, async (c) => {
     return c.json({
       success: false,
       error: {
-        status: 500,
+        code: 500,
         message: JSON.stringify(error) || "Internal server error",
       },
     });
@@ -77,7 +77,7 @@ app.get("/:workspaceId", requireAuthMiddleware, async (c) => {
     return c.json({
       success: false,
       error: {
-        status: 500,
+        code: 500,
         message: JSON.stringify(error) || "Internal server error",
       },
     });
@@ -132,7 +132,7 @@ app.post(
       return c.json({
         success: false,
         error: {
-          status: 500,
+          code: 500,
           message: JSON.stringify(error) || "Internal server error",
         },
       });
@@ -210,12 +210,55 @@ app.patch(
       return c.json({
         success: false,
         error: {
-          status: 500,
+          code: 500,
           message: JSON.stringify(error) || "Internal server error",
         },
       });
     }
   }
 );
+
+app.delete("/:workspaceId", requireAuthMiddleware, async (c) => {
+  const user = c.get("user");
+  const { workspaceId } = c.req.param();
+
+  try {
+    const isCreator = await prisma.workspace.findFirst({
+      where: {
+        id: workspaceId,
+        AND: {
+          userId: user.id,
+        },
+      },
+    });
+
+    if (!isCreator) {
+      return c.json({
+        success: false,
+        error: {
+          code: 401,
+          message: "Unauthorized to delete workspace",
+        },
+      });
+    }
+
+    await prisma.workspace.delete({
+      where: { id: workspaceId },
+    });
+
+    return c.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error(error);
+    return c.json({
+      success: false,
+      error: {
+        code: 500,
+        message: JSON.stringify(error) || "Internal server error",
+      },
+    });
+  }
+});
 
 export default app;
