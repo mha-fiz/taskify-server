@@ -218,6 +218,60 @@ app.patch(
   }
 );
 
+app.post(
+  "/:workspaceId/reset-invite-link",
+  requireAuthMiddleware,
+  async (c) => {
+    const { workspaceId } = c.req.param();
+    const user = c.get("user");
+
+    const isAuthorized = await prisma.members.findFirst({
+      where: {
+        workspaceId,
+        userId: user.id,
+        role: "ADMIN",
+      },
+    });
+
+    if (!isAuthorized) {
+      return c.json({
+        success: false,
+        error: {
+          status: 401,
+          message: "Unauthorized",
+        },
+      });
+    }
+
+    try {
+      const newCode = generateInviteCode(15);
+      console.log("newcode: ", newCode);
+      const workspace = await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: {
+          inviteCode: newCode,
+        },
+      });
+
+      return c.json({
+        success: true,
+        data: {
+          workspace,
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      return c.json({
+        success: false,
+        error: {
+          code: 500,
+          message: JSON.stringify(error) || "Internal server error",
+        },
+      });
+    }
+  }
+);
+
 app.delete("/:workspaceId", requireAuthMiddleware, async (c) => {
   const user = c.get("user");
   const { workspaceId } = c.req.param();
