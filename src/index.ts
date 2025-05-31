@@ -7,7 +7,8 @@ import { config } from "dotenv";
 import { auth } from "~lib/auth.js";
 import { setAuthMiddleware } from "./middlewares.js";
 import type { AuthContext } from "./types.js";
-import workspaceRoutes from "./routes/workspace.js";
+import workspaceRoutes from "~routes/workspace.js";
+import memberRoutes from "~routes/member.js";
 
 config({ debug: process.env.NODE_ENV !== "production" });
 
@@ -27,6 +28,7 @@ app.use(
 app.use("*", setAuthMiddleware);
 app.on(["POST", "GET"], "/auth/**", (c) => auth.handler(c.req.raw));
 app.route("/workspace", workspaceRoutes);
+app.route("/member", memberRoutes);
 
 serve(
   {

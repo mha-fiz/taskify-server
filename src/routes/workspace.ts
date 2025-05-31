@@ -158,13 +158,16 @@ app.patch(
     });
 
     if (!isAuthorized) {
-      return c.json({
-        success: false,
-        error: {
-          status: 401,
-          message: "Unauthorized",
+      return c.json(
+        {
+          success: false,
+          error: {
+            status: 401,
+            message: "Unauthorized",
+          },
         },
-      });
+        401
+      );
     }
 
     let imageUrl = "";
@@ -234,13 +237,16 @@ app.post(
     });
 
     if (!isAuthorized) {
-      return c.json({
-        success: false,
-        error: {
-          status: 401,
-          message: "Unauthorized",
+      return c.json(
+        {
+          success: false,
+          error: {
+            status: 401,
+            message: "Unauthorized",
+          },
         },
-      });
+        401
+      );
     }
 
     try {
@@ -272,6 +278,76 @@ app.post(
   }
 );
 
+app.post(
+  "/:workspaceId/join",
+  requireAuthMiddleware,
+  zValidator("json", z.object({ code: z.string() })),
+  async (c) => {
+    const user = c.get("user");
+    const { workspaceId } = c.req.param();
+    const { code } = c.req.valid("json");
+
+    try {
+      const isAlreadyMember = await prisma.members.findFirst({
+        where: {
+          workspaceId,
+          userId: user.id,
+        },
+      });
+
+      if (isAlreadyMember) {
+        return c.json(
+          {
+            error: {
+              code: 400,
+              message: "Already a member of the workspace",
+            },
+          },
+          400
+        );
+      }
+
+      const workspace = await prisma.workspace.findFirst({
+        where: {
+          id: workspaceId,
+        },
+      });
+
+      if (!workspace) {
+        return c.json({ error: { code: 404, message: "Workspace not found" } });
+      }
+
+      if (workspace.inviteCode !== code) {
+        return c.json({ error: { code: 401, message: "Invalid invite code" } });
+      }
+
+      await prisma.members.create({
+        data: {
+          workspaceId,
+          role: "USER",
+          userId: user.id,
+        },
+      });
+
+      return c.json({
+        success: true,
+        data: {
+          workspaceId: workspace.id,
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      return c.json({
+        success: false,
+        error: {
+          code: 500,
+          message: JSON.stringify(error) || "Internal server error",
+        },
+      });
+    }
+  }
+);
+
 app.delete("/:workspaceId", requireAuthMiddleware, async (c) => {
   const user = c.get("user");
   const { workspaceId } = c.req.param();
@@ -287,13 +363,16 @@ app.delete("/:workspaceId", requireAuthMiddleware, async (c) => {
     });
 
     if (!isCreator) {
-      return c.json({
-        success: false,
-        error: {
-          code: 401,
-          message: "Unauthorized to delete workspace",
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 401,
+            message: "Unauthorized to delete workspace",
+          },
         },
-      });
+        401
+      );
     }
 
     await prisma.workspace.delete({
