@@ -16,3 +16,8 @@ export type RequiredAuthContext = {
     session: AuthSession;
   };
 };
+
+export enum MemberRole {
+  ADMIN = "ADMIN",
+  USER = "USER",
+}
