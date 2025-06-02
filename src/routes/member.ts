@@ -200,25 +200,35 @@ app.patch(
     z.object({ role: z.nativeEnum(MemberRole), workspaceId: z.string() })
   ),
   async (c) => {
-    const user = c.get("user")
     const { memberId } = c.req.param()
-    const { workspaceId, role } = c.req.valid("json")
+    const user = c.get("user")
+    const { role: newRole, workspaceId } = c.req.valid("json")
 
     try {
-      const isMember = await prisma.members.findFirst({
-        where: { userId: user.id, workspaceId },
-      })
+      const [currentMember, memberToUpdate, totalAdminCount] =
+        await prisma.$transaction([
+          prisma.members.findFirst({ where: { userId: user.id, workspaceId } }),
+          prisma.members.findFirst({
+            where: { userId: memberId, workspaceId },
+          }),
+          prisma.members.count({
+            where: { role: MemberRole.ADMIN, workspaceId },
+          }),
+        ])
 
-      if (!isMember) {
+      if (!currentMember) {
         return c.json(
           { success: false, error: { code: 401, message: "Unauthorized" } },
           401
         )
       }
 
-      const memberToUpdate = await prisma.members.findFirst({
-        where: { userId: memberId, workspaceId },
-      })
+      if (currentMember.role !== MemberRole.ADMIN) {
+        return c.json(
+          { success: false, error: { code: 403, message: "Forbidden" } },
+          403
+        )
+      }
 
       if (!memberToUpdate) {
         return c.json(
@@ -226,40 +236,32 @@ app.patch(
             success: false,
             error: {
               code: 404,
-              message: "The member to update not found",
+              message: "The member to update was not found in this workspace.",
             },
           },
           404
         )
       }
 
-      const totalMembers = await prisma.members.count({
-        where: { workspaceId },
-      })
+      const isCurrentlyAdmin = memberToUpdate.role === MemberRole.ADMIN
+      const isDemoting = isCurrentlyAdmin && newRole === MemberRole.USER
 
-      if (totalMembers === 1) {
+      if (isDemoting && totalAdminCount === 1) {
         return c.json(
           {
             success: false,
             error: {
               code: 400,
-              message: "Cannot change the role of the last member of workspace",
+              message: "Cannot remove the last admin of this workspace.",
             },
           },
           400
         )
       }
 
-      if (isMember.role !== "ADMIN") {
-        return c.json(
-          { success: false, error: { code: 401, message: "Unauthorized" } },
-          401
-        )
-      }
-
       const updatedMember = await prisma.members.update({
         where: { id: memberToUpdate.id },
-        data: { role },
+        data: { role: newRole },
       })
 
       return c.json({
@@ -273,7 +275,7 @@ app.patch(
           success: false,
           error: {
             code: 500,
-            message: JSON.stringify(error) || "Internal server error",
+            message: (error as Error).message || "Internal server error",
           },
         },
         500
