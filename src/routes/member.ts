@@ -1,11 +1,15 @@
 import { zValidator } from "@hono/zod-validator";
-import { Hono } from "hono";
-import { z } from "zod";
+import { createAppWithAuth } from "~/factory.js";
 import { requireAuthMiddleware } from "~/middlewares.js";
-import { MemberRole, type RequiredAuthContext } from "~/types.js";
+import {
+  deleteMemberSchema,
+  getMemberSchema,
+  updateMemberSchema,
+} from "~/schemas/member.js";
+import { MemberRole } from "~/types.js";
 import prisma from "~lib/db.js";
 
-const app = new Hono<RequiredAuthContext>();
+const app = createAppWithAuth();
 
 app.get("/:workspaceId/check-member", requireAuthMiddleware, async (c) => {
   const user = c.get("user");
@@ -39,7 +43,7 @@ app.get("/:workspaceId/check-member", requireAuthMiddleware, async (c) => {
             error instanceof Error ? error.message : "Internal server error",
         },
       },
-      500,
+      500
     );
   }
 });
@@ -47,7 +51,7 @@ app.get("/:workspaceId/check-member", requireAuthMiddleware, async (c) => {
 app.get(
   "/",
   requireAuthMiddleware,
-  zValidator("query", z.object({ workspaceId: z.string() })),
+  zValidator("query", getMemberSchema),
   async (c) => {
     const { workspaceId } = c.req.valid("query");
     const user = c.get("user");
@@ -60,7 +64,7 @@ app.get(
       if (!isMember) {
         return c.json(
           { success: false, error: { code: 401, message: "Unauthorized" } },
-          401,
+          401
         );
       }
 
@@ -79,7 +83,7 @@ app.get(
             name: memberData?.name ?? "",
             email: memberData?.email ?? "",
           };
-        }),
+        })
       );
 
       return c.json({
@@ -98,16 +102,16 @@ app.get(
             message: JSON.stringify(error) || "Internal server error",
           },
         },
-        500,
+        500
       );
     }
-  },
+  }
 );
 
 app.delete(
   "/:memberId",
   requireAuthMiddleware,
-  zValidator("json", z.object({ workspaceId: z.string() })),
+  zValidator("json", deleteMemberSchema),
   async (c) => {
     const user = c.get("user");
     const { memberId } = c.req.param();
@@ -126,7 +130,7 @@ app.delete(
       if (!isMember) {
         return c.json(
           { success: false, error: { code: 401, message: "Unauthorized" } },
-          401,
+          401
         );
       }
 
@@ -139,7 +143,7 @@ app.delete(
               message: "The member to remove not found",
             },
           },
-          404,
+          404
         );
       }
 
@@ -152,7 +156,7 @@ app.delete(
               message: "Cannot delete the last member of workspace",
             },
           },
-          400,
+          400
         );
       }
 
@@ -162,7 +166,7 @@ app.delete(
       ) {
         return c.json(
           { success: false, error: { code: 401, message: "Unauthorized" } },
-          401,
+          401
         );
       }
 
@@ -184,19 +188,16 @@ app.delete(
             message: JSON.stringify(error) || "Internal server error",
           },
         },
-        500,
+        500
       );
     }
-  },
+  }
 );
 
 app.patch(
   "/:memberId",
   requireAuthMiddleware,
-  zValidator(
-    "json",
-    z.object({ role: z.nativeEnum(MemberRole), workspaceId: z.string() }),
-  ),
+  zValidator("json", updateMemberSchema),
   async (c) => {
     const { memberId } = c.req.param();
     const user = c.get("user");
@@ -217,14 +218,14 @@ app.patch(
       if (!currentMember) {
         return c.json(
           { success: false, error: { code: 401, message: "Unauthorized" } },
-          401,
+          401
         );
       }
 
       if (currentMember.role !== MemberRole.ADMIN) {
         return c.json(
           { success: false, error: { code: 403, message: "Forbidden" } },
-          403,
+          403
         );
       }
 
@@ -237,7 +238,7 @@ app.patch(
               message: "The member to update was not found in this workspace.",
             },
           },
-          404,
+          404
         );
       }
 
@@ -253,7 +254,7 @@ app.patch(
               message: "Cannot remove the last admin of this workspace.",
             },
           },
-          400,
+          400
         );
       }
 
@@ -276,10 +277,10 @@ app.patch(
             message: (error as Error).message || "Internal server error",
           },
         },
-        500,
+        500
       );
     }
-  },
+  }
 );
 
 export default app;

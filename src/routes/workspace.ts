@@ -1,18 +1,17 @@
-import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
 import { requireAuthMiddleware } from "~/middlewares.js";
 import prisma from "~lib/db.js";
-import type { RequiredAuthContext } from "~/types.js";
 import { uploadToImagekit } from "~/lib/imagekit.js";
 import { generateInviteCode } from "~/lib/utils.js";
 import {
   createWorkspaceSchema,
   updateWorkspaceSchema,
 } from "~/schemas/workspace.js";
+import { createAppWithAuth } from "~/factory.js";
 
-const app = new Hono<RequiredAuthContext>();
+const app = createAppWithAuth();
 
 app.get("/", requireAuthMiddleware, async (c) => {
   const user = c.get("user");

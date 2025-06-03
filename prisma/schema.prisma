@@ -92,3 +92,10 @@ model Members {
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
+
+model Projects {
+  id String @id @default(uuid())
+  workspaceId String
+  imageUrl String? @db.Text
+  name String
+}

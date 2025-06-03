@@ -9,6 +9,7 @@ import { setAuthMiddleware } from "./middlewares.js";
 import type { AuthContext } from "./types.js";
 import workspaceRoutes from "~routes/workspace.js";
 import memberRoutes from "~routes/member.js";
+import projectRoutes from "~routes/project.js";
 
 config({ debug: process.env.NODE_ENV !== "production" });
 
@@ -29,6 +30,7 @@ app.use("*", setAuthMiddleware);
 app.on(["POST", "GET"], "/auth/**", (c) => auth.handler(c.req.raw));
 app.route("/workspace", workspaceRoutes);
 app.route("/member", memberRoutes);
+app.route("/project", projectRoutes);
 
 serve(
   {
