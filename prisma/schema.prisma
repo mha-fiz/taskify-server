@@ -78,6 +78,9 @@ model Workspace {
   imageId String?
   inviteCode String
   member Members[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum Role {
@@ -87,15 +90,22 @@ enum Role {
 model Members {
   id String @id @default(uuid())
   userId String
-  workspaceId String
   role Role @default(USER)
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Projects {
   id String @id @default(uuid())
   workspaceId String
   imageUrl String? @db.Text
+  imageId String?
   name String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
