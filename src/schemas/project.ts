@@ -25,3 +25,5 @@ export const updateProjectSchema = z.object({
       .optional(),
   ]),
 })
+
+export const deleteProjectSchema = z.object({ workspaceId: z.string() })

@@ -4,6 +4,7 @@ import { IMAGE_FOLDER, uploadToImagekit } from "~/lib/imagekit.js"
 import { requireAuthMiddleware } from "~/middlewares.js"
 import {
   createProjectSchema,
+  deleteProjectSchema,
   getProjectSchema,
   updateProjectQuerySchema,
   updateProjectSchema,
@@ -259,6 +260,59 @@ app.patch(
           message: JSON.stringify(error) || "Internal server error",
         },
       })
+    }
+  }
+)
+
+app.delete(
+  "/:projectId",
+  requireAuthMiddleware,
+  zValidator("query", deleteProjectSchema),
+  async (c) => {
+    const user = c.get("user")
+    const { projectId } = c.req.param()
+    const { workspaceId } = c.req.valid("query")
+
+    try {
+      const isProjectExist = await prisma.projects.findFirst({
+        where: {
+          id: projectId,
+          workspaceId,
+        },
+      })
+
+      if (!isProjectExist) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 404,
+              message: "Project not found",
+            },
+          },
+          404
+        )
+      }
+
+      await prisma.projects.delete({
+        where: { id: projectId },
+      })
+
+      return c.json({
+        success: true,
+      })
+    } catch (error) {
+      console.error(error)
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 500,
+            message: JSON.stringify(error) || "Internal server error",
+          },
+        },
+        500
+      )
     }
   }
 )
