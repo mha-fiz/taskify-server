@@ -1,20 +1,21 @@
-import { serve } from "@hono/node-server";
-import { Hono, type Context, type Next } from "hono";
-import { cors } from "hono/cors";
-import { logger } from "hono/logger";
+import { serve } from "@hono/node-server"
+import { Hono, type Context, type Next } from "hono"
+import { cors } from "hono/cors"
+import { logger } from "hono/logger"
 
-import { config } from "dotenv";
-import { auth } from "~lib/auth.js";
-import { setAuthMiddleware } from "./middlewares.js";
-import type { AuthContext } from "./types.js";
-import workspaceRoutes from "~routes/workspace.js";
-import memberRoutes from "~routes/member.js";
-import projectRoutes from "~routes/project.js";
+import { config } from "dotenv"
+import { auth } from "~lib/auth.js"
+import { setAuthMiddleware } from "./middlewares.js"
+import type { AuthContext } from "./types.js"
+import workspaceRoutes from "~routes/workspace.js"
+import memberRoutes from "~routes/member.js"
+import projectRoutes from "~routes/project.js"
+import taskRoutes from "~routes/task.js"
 
-config({ debug: process.env.NODE_ENV !== "production" });
+config({ debug: process.env.NODE_ENV !== "production" })
 
-const app = new Hono<AuthContext>().basePath("/api");
-app.use(logger());
+const app = new Hono<AuthContext>().basePath("/api")
+app.use(logger())
 app.use(
   "*", // or replace with "*" to enable cors for all routes
   cors({
@@ -25,12 +26,13 @@ app.use(
     maxAge: 600,
     credentials: true,
   })
-);
-app.use("*", setAuthMiddleware);
-app.on(["POST", "GET"], "/auth/**", (c) => auth.handler(c.req.raw));
-app.route("/workspace", workspaceRoutes);
-app.route("/member", memberRoutes);
-app.route("/project", projectRoutes);
+)
+app.use("*", setAuthMiddleware)
+app.on(["POST", "GET"], "/auth/**", (c) => auth.handler(c.req.raw))
+app.route("/workspace", workspaceRoutes)
+app.route("/member", memberRoutes)
+app.route("/project", projectRoutes)
+app.route("/task", taskRoutes)
 
 serve(
   {
@@ -38,6 +40,6 @@ serve(
     port: 3000,
   },
   (info) => {
-    console.log(`Server is running on http://localhost:${info.port}`);
+    console.log(`Server is running on http://localhost:${info.port}`)
   }
-);
+)
